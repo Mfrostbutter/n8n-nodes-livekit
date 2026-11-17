@@ -1,0 +1,38 @@
+{
+  "name": "n8n-nodes-livekit",
+  "version": "0.1.0",
+  "description": "LiveKit control-plane nodes for n8n: rooms, participants, SIP, agent dispatch, access tokens and webhook events",
+  "license": "MIT",
+  "keywords": [
+    "n8n-community-node-package"
+  ],
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/copy-icons.js",
+    "build:watch": "tsc --watch",
+    "test": "node --test --import tsx tests/*.test.ts"
+  },
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "strict": true,
+    "credentials": [
+      "dist/credentials/LiveKitApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/LiveKit/LiveKit.node.js",
+      "dist/nodes/LiveKit/LiveKitTrigger.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "n8n-workflow": "2.16.0",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}
