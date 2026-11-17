@@ -5,7 +5,9 @@ import {
 	buildAccessToken,
 	buildRequest,
 	builders,
+	redact,
 	twirpUrl,
+	withTrunkAuth,
 	type Getter,
 } from '../nodes/LiveKit/operations';
 import { matches, participantKind } from '../nodes/LiveKit/webhook';
@@ -276,4 +278,39 @@ test('dispatch rule list and delete', () => {
 	assert.deepEqual(many.listKeys, ['items']);
 	const del = buildRequest('sipDispatchRule', 'delete', getter({ sipDispatchRuleId: 'SDR_1' }));
 	assert.deepEqual(del.body, { sip_dispatch_rule_id: 'SDR_1' });
+});
+
+test('trunk auth is added to the trunk message, inbound and outbound', () => {
+	const auth = { username: 'trunk-user', password: 'not-a-real-password' };
+	for (const trunkType of ['inbound', 'outbound']) {
+		const base = buildRequest(
+			'sipTrunk',
+			'create',
+			getter({ trunkType, trunkName: 't', address: 'sip.example.com' }),
+		);
+		const r = withTrunkAuth(base, auth);
+		const trunk = r.body.trunk as Record<string, unknown>;
+		assert.equal(trunk.auth_username, 'trunk-user');
+		assert.equal(trunk.auth_password, 'not-a-real-password');
+		assert.equal(trunk.name, 't');
+		assert.equal((base.body.trunk as Record<string, unknown>).auth_password, undefined);
+	}
+});
+
+test('trunk auth is refused when incomplete or on a non-trunk request', () => {
+	const trunk = buildRequest('sipTrunk', 'create', getter({ trunkName: 't' }));
+	assert.throws(() => withTrunkAuth(trunk, { username: 'u', password: '' }), /incomplete/);
+	const room = buildRequest('room', 'delete', getter({ roomName: 'r' }));
+	assert.throws(() => withTrunkAuth(room, { username: 'u', password: 'p' }), /trunk creation/);
+});
+
+test('redact strips trunk passwords at any depth and keeps the rest', () => {
+	const out = redact({
+		items: [{ sip_trunk_id: 'ST_1', auth_username: 'u', auth_password: 'p' }],
+		trunk: { authPassword: 'p', name: 'n' },
+	});
+	assert.deepEqual(out, {
+		items: [{ sip_trunk_id: 'ST_1', auth_username: 'u' }],
+		trunk: { name: 'n' },
+	});
 });

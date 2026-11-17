@@ -11,6 +11,7 @@ Status: 0.1.0, unit-tested, not yet run against a LiveKit server.
 | Part | Type name | What it does |
 |---|---|---|
 | Credential | `liveKitApi` | Server URL, API key, API secret |
+| Credential | `liveKitSipTrunkAuthApi` | Username and password for SIP trunk digest authentication |
 | LiveKit | `liveKit` | Rooms, participants, SIP transfer and outbound call, agent dispatch, access tokens. Usable as an AI Agent tool. |
 | LiveKit Trigger | `liveKitTrigger` | Starts a workflow on a LiveKit webhook event, signature verified |
 
@@ -29,9 +30,11 @@ Status: 0.1.0, unit-tested, not yet run against a LiveKit server.
 Every API request carries a token signed for that request: 60 s lifetime, only
 the grants the operation needs.
 
-Not covered: trunk digest authentication (username and password) and dispatch
-rule PINs. Both are secrets and would need a credential type, not a node field.
-Restrict inbound trunks by allowed addresses or numbers instead.
+Trunk digest authentication takes its username and password from the
+`liveKitSipTrunkAuthApi` credential, never from a node field. Trunk passwords
+are stripped from every API response before it reaches the workflow.
+
+Not covered: dispatch rule PINs.
 
 ## Trigger setup
 

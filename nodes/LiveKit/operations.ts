@@ -352,6 +352,37 @@ export const builders: Record<string, Builder> = {
 	}),
 };
 
+export interface TrunkAuth {
+	username: string;
+	password: string;
+}
+
+// Adds digest credentials to a trunk create request.
+export function withTrunkAuth(request: ApiRequest, auth: TrunkAuth): ApiRequest {
+	const trunk = request.body.trunk as Record<string, unknown> | undefined;
+	if (!trunk) throw new Error('Trunk authentication applies to trunk creation only');
+	if (!auth.username || !auth.password) throw new Error('Trunk auth credential is incomplete');
+	return {
+		...request,
+		body: { ...request.body, trunk: { ...trunk, auth_username: auth.username, auth_password: auth.password } },
+	};
+}
+
+const SECRET_KEYS = new Set(['auth_password', 'authPassword']);
+
+// Removes trunk passwords from an API response, at any depth.
+export function redact<T>(value: T): T {
+	if (Array.isArray(value)) return value.map(redact) as T;
+	if (value && typeof value === 'object') {
+		const out: Record<string, unknown> = {};
+		for (const [k, v] of Object.entries(value)) {
+			if (!SECRET_KEYS.has(k)) out[k] = redact(v);
+		}
+		return out as T;
+	}
+	return value;
+}
+
 export function buildRequest(resource: string, operation: string, get: Getter): ApiRequest {
 	const builder = builders[`${resource}:${operation}`];
 	if (!builder) throw new Error(`Unsupported operation: ${resource} ${operation}`);

@@ -612,6 +612,19 @@ export const properties: INodeProperties[] = [
 		],
 	},
 	{
+		displayName: 'Authentication',
+		name: 'trunkAuthentication',
+		type: 'options',
+		default: 'none',
+		description:
+			'Digest authentication takes the username and password from a LiveKit SIP Trunk Auth credential',
+		options: [
+			{ name: 'Digest (Username and Password)', value: 'digest' },
+			{ name: 'None', value: 'none' },
+		],
+		...show(['sipTrunk'], ['create']),
+	},
+	{
 		displayName: 'Trunk IDs',
 		name: 'trunkIds',
 		type: 'string',

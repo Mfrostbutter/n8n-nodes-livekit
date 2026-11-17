@@ -9,7 +9,7 @@ import type {
 import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
 import { properties } from './description';
-import { buildAccessToken, buildRequest, twirpUrl } from './operations';
+import { buildAccessToken, buildRequest, redact, twirpUrl, withTrunkAuth } from './operations';
 import { signToken } from './token';
 
 // Lifetime of the per-request API token.
@@ -28,7 +28,16 @@ export class LiveKit implements INodeType {
 		inputs: [NodeConnectionTypes.Main],
 		outputs: [NodeConnectionTypes.Main],
 		usableAsTool: true,
-		credentials: [{ name: 'liveKitApi', required: true }],
+		credentials: [
+			{ name: 'liveKitApi', required: true },
+			{
+				name: 'liveKitSipTrunkAuthApi',
+				required: true,
+				displayOptions: {
+					show: { resource: ['sipTrunk'], operation: ['create'], trunkAuthentication: ['digest'] },
+				},
+			},
+		],
 		properties,
 	};
 
@@ -63,7 +72,18 @@ export class LiveKit implements INodeType {
 					continue;
 				}
 
-				const request = buildRequest(resource, operation, get);
+				let request = buildRequest(resource, operation, get);
+				if (
+					resource === 'sipTrunk' &&
+					operation === 'create' &&
+					get('trunkAuthentication', 'none') === 'digest'
+				) {
+					const auth = await this.getCredentials('liveKitSipTrunkAuthApi', i);
+					request = withTrunkAuth(request, {
+						username: String(auth.username ?? ''),
+						password: String(auth.password ?? ''),
+					});
+				}
 				const token = signToken(
 					{ video: request.video ?? {}, ...(request.sip ? { sip: request.sip } : {}) },
 					{ apiKey, apiSecret, ttlSeconds: API_TOKEN_TTL },
@@ -71,7 +91,7 @@ export class LiveKit implements INodeType {
 
 				let response: IDataObject;
 				try {
-					response = (await this.helpers.httpRequest({
+					response = redact(await this.helpers.httpRequest({
 						method: 'POST',
 						url: twirpUrl(serverUrl, request.service, request.method),
 						headers: {

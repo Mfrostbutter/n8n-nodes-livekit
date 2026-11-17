@@ -45,6 +45,9 @@ before(async () => {
 		if (path.endsWith('/ListRooms')) return reply(200, { rooms: [{ name: 'a' }, { name: 'b' }, { name: 'c' }] });
 		if (path.endsWith('/ListDispatch')) return reply(200, { agent_dispatches: [{ id: 'AD_1' }] });
 		if (path.endsWith('/DeleteRoom')) return reply(200, {});
+		if (path.endsWith('/CreateSIPInboundTrunk')) {
+			return reply(200, { sip_trunk_id: 'ST_new', ...body.trunk });
+		}
 		if (path.endsWith('/TransferSIPParticipant')) {
 			if (body.transfer_to === 'tel:+busy') {
 				return reply(409, { code: 'aborted', msg: 'sip status: 486: Busy Here' });
@@ -63,7 +66,10 @@ after(() => server.close());
 function executeContext(items: Record<string, unknown>[], continueOnFail = false) {
 	return {
 		getInputData: () => items.map((json) => ({ json })),
-		getCredentials: async () => creds,
+		getCredentials: async (name: string) =>
+			name === 'liveKitSipTrunkAuthApi'
+				? { username: 'trunk-user', password: 'not-a-real-password' }
+				: creds,
 		getNodeParameter: (name: string, i: number, fallback?: unknown) =>
 			name in items[i] ? items[i][name] : fallback,
 		getNode: () => ({ name: 'LiveKit', type: 'liveKit', typeVersion: 1, parameters: {} }),
@@ -233,4 +239,32 @@ test('trigger with a participant filter drops events that carry no participant',
 	const roomEvent = JSON.stringify({ event: 'room_finished', id: 'EV_2', room: { name: 'call-1' } });
 	const { ctx } = webhookContext(Buffer.from(roomEvent), auth(roomEvent), { participantKind: 'SIP' });
 	assert.deepEqual(await hook(ctx), {});
+});
+
+test('digest trunk auth comes from the credential and the password never reaches the output', async () => {
+	seen.length = 0;
+	const [out] = await run([
+		{
+			resource: 'sipTrunk',
+			operation: 'create',
+			trunkType: 'inbound',
+			trunkName: 'in',
+			numbers: '+4930123',
+			trunkAuthentication: 'digest',
+		},
+	]);
+	assert.equal(seen[0].body.trunk.auth_username, 'trunk-user');
+	assert.equal(seen[0].body.trunk.auth_password, 'not-a-real-password');
+	assert.deepEqual(seen[0].claims.sip, { admin: true });
+	assert.equal(out[0].json.sip_trunk_id, 'ST_new');
+	assert.equal(out[0].json.auth_username, 'trunk-user');
+	assert.equal('auth_password' in out[0].json, false);
+	assert.equal(JSON.stringify(out).includes('not-a-real-password'), false);
+});
+
+test('a trunk without digest auth sends no auth fields', async () => {
+	seen.length = 0;
+	await run([{ resource: 'sipTrunk', operation: 'create', trunkType: 'inbound', trunkName: 'in' }]);
+	assert.equal('auth_username' in seen[0].body.trunk, false);
+	assert.equal('auth_password' in seen[0].body.trunk, false);
 });

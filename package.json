@@ -19,7 +19,8 @@
     "n8nNodesApiVersion": 1,
     "strict": true,
     "credentials": [
-      "dist/credentials/LiveKitApi.credentials.js"
+      "dist/credentials/LiveKitApi.credentials.js",
+      "dist/credentials/LiveKitSipTrunkAuthApi.credentials.js"
     ],
     "nodes": [
       "dist/nodes/LiveKit/LiveKit.node.js",
