@@ -243,6 +243,113 @@ export const builders: Record<string, Builder> = {
 			body: { room, dispatch_id: str(get, 'dispatchId') },
 		};
 	},
+	'sipTrunk:create': (get) => {
+		const o = obj(get, 'trunkOptions');
+		const media = o.mediaEncryption ? { encryption: o.mediaEncryption } : undefined;
+		const numbers = list(get('numbers', ''));
+		if (get('trunkType', 'inbound') === 'outbound') {
+			return {
+				service: 'SIP',
+				method: 'CreateSIPOutboundTrunk',
+				sip: { admin: true },
+				body: {
+					trunk: compact({
+						name: str(get, 'trunkName'),
+						address: str(get, 'address'),
+						numbers,
+						transport: o.transport,
+						metadata: o.metadata,
+						headers: stringMap(o.headers, 'Headers'),
+						media,
+					}),
+				},
+			};
+		}
+		const allowedAddresses = list(o.allowedAddresses);
+		const allowedNumbers = list(o.allowedNumbers);
+		return {
+			service: 'SIP',
+			method: 'CreateSIPInboundTrunk',
+			sip: { admin: true },
+			body: {
+				trunk: compact({
+					name: str(get, 'trunkName'),
+					numbers,
+					allowed_addresses: allowedAddresses.length ? allowedAddresses : undefined,
+					allowed_numbers: allowedNumbers.length ? allowedNumbers : undefined,
+					metadata: o.metadata,
+					include_headers: o.includeHeaders,
+					headers_to_attributes: stringMap(o.headersToAttributes, 'Headers to Attributes'),
+					krisp_enabled: o.krispEnabled ? true : undefined,
+					media,
+				}),
+			},
+		};
+	},
+	'sipTrunk:getMany': (get) => {
+		const ids = list(get('trunkIds', ''));
+		return {
+			service: 'SIP',
+			method:
+				get('trunkType', 'inbound') === 'outbound' ? 'ListSIPOutboundTrunk' : 'ListSIPInboundTrunk',
+			sip: { admin: true },
+			body: ids.length ? { trunk_ids: ids } : {},
+			listKeys: ['items'],
+		};
+	},
+	'sipTrunk:delete': (get) => ({
+		service: 'SIP',
+		method: 'DeleteSIPTrunk',
+		sip: { admin: true },
+		body: { sip_trunk_id: str(get, 'sipTrunkId') },
+	}),
+	'sipDispatchRule:create': (get) => {
+		const o = obj(get, 'ruleOptions');
+		const type = String(get('ruleType', 'individual'));
+		const rule =
+			type === 'direct'
+				? { dispatch_rule_direct: { room_name: str(get, 'ruleRoomName') } }
+				: type === 'callee'
+					? { dispatch_rule_callee: compact({ room_prefix: str(get, 'roomPrefix') }) }
+					: { dispatch_rule_individual: compact({ room_prefix: str(get, 'roomPrefix') }) };
+		const trunkIds = list(o.trunkIds);
+		const inboundNumbers = list(o.inboundNumbers);
+		const dispatch = agents(o.agentName, o.agentMetadata);
+		return {
+			service: 'SIP',
+			method: 'CreateSIPDispatchRule',
+			sip: { admin: true },
+			body: {
+				dispatch_rule: compact({
+					rule,
+					name: o.name,
+					trunk_ids: trunkIds.length ? trunkIds : undefined,
+					inbound_numbers: inboundNumbers.length ? inboundNumbers : undefined,
+					hide_phone_number: o.hidePhoneNumber ? true : undefined,
+					metadata: o.metadata,
+					attributes: stringMap(o.attributes, 'Attributes'),
+					krisp_enabled: o.krispEnabled ? true : undefined,
+					room_config: dispatch ? { agents: dispatch } : undefined,
+				}),
+			},
+		};
+	},
+	'sipDispatchRule:getMany': (get) => {
+		const ids = list(get('ruleIds', ''));
+		return {
+			service: 'SIP',
+			method: 'ListSIPDispatchRule',
+			sip: { admin: true },
+			body: ids.length ? { dispatch_rule_ids: ids } : {},
+			listKeys: ['items'],
+		};
+	},
+	'sipDispatchRule:delete': (get) => ({
+		service: 'SIP',
+		method: 'DeleteSIPDispatchRule',
+		sip: { admin: true },
+		body: { sip_dispatch_rule_id: str(get, 'sipDispatchRuleId') },
+	}),
 };
 
 export function buildRequest(resource: string, operation: string, get: Getter): ApiRequest {

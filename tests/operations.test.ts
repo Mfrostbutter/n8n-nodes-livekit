@@ -158,3 +158,122 @@ test('trigger filters', () => {
 	assert.equal(participantKind({ participant: { kind: 3 } }), 'SIP');
 	assert.equal(participantKind({ participant: {} }), 'STANDARD');
 });
+
+test('inbound trunk for a Genesys-style carrier', () => {
+	const r = buildRequest(
+		'sipTrunk',
+		'create',
+		getter({
+			trunkType: 'inbound',
+			trunkName: 'genesys-in',
+			numbers: '+4930123, +4930124',
+			trunkOptions: {
+				allowedAddresses: '203.0.113.0/24',
+				includeHeaders: 'SIP_ALL_HEADERS',
+				headersToAttributes: '{"User-to-User":"uui"}',
+				mediaEncryption: 'SIP_MEDIA_ENCRYPT_REQUIRE',
+			},
+		}),
+	);
+	assert.equal(r.method, 'CreateSIPInboundTrunk');
+	assert.deepEqual(r.sip, { admin: true });
+	assert.equal(r.video, undefined);
+	assert.deepEqual(r.body, {
+		trunk: {
+			name: 'genesys-in',
+			numbers: ['+4930123', '+4930124'],
+			allowed_addresses: ['203.0.113.0/24'],
+			include_headers: 'SIP_ALL_HEADERS',
+			headers_to_attributes: { 'User-to-User': 'uui' },
+			media: { encryption: 'SIP_MEDIA_ENCRYPT_REQUIRE' },
+		},
+	});
+});
+
+test('outbound trunk carries address and transport', () => {
+	const r = buildRequest(
+		'sipTrunk',
+		'create',
+		getter({
+			trunkType: 'outbound',
+			trunkName: 'out',
+			address: 'sip.example.com',
+			numbers: '+15105550100',
+			trunkOptions: { transport: 'SIP_TRANSPORT_TLS' },
+		}),
+	);
+	assert.equal(r.method, 'CreateSIPOutboundTrunk');
+	assert.deepEqual(r.body, {
+		trunk: {
+			name: 'out',
+			address: 'sip.example.com',
+			numbers: ['+15105550100'],
+			transport: 'SIP_TRANSPORT_TLS',
+		},
+	});
+});
+
+test('trunk list picks the method by type and delete sends the id', () => {
+	const inbound = buildRequest('sipTrunk', 'getMany', getter({ trunkType: 'inbound' }));
+	assert.equal(inbound.method, 'ListSIPInboundTrunk');
+	assert.deepEqual(inbound.body, {});
+	assert.deepEqual(inbound.listKeys, ['items']);
+	const outbound = buildRequest(
+		'sipTrunk',
+		'getMany',
+		getter({ trunkType: 'outbound', trunkIds: 'ST_1,ST_2' }),
+	);
+	assert.equal(outbound.method, 'ListSIPOutboundTrunk');
+	assert.deepEqual(outbound.body, { trunk_ids: ['ST_1', 'ST_2'] });
+	const del = buildRequest('sipTrunk', 'delete', getter({ sipTrunkId: 'ST_1' }));
+	assert.equal(del.method, 'DeleteSIPTrunk');
+	assert.deepEqual(del.body, { sip_trunk_id: 'ST_1' });
+	assert.deepEqual(del.sip, { admin: true });
+});
+
+test('dispatch rule shapes: individual with agent, direct, callee', () => {
+	const individual = buildRequest(
+		'sipDispatchRule',
+		'create',
+		getter({
+			ruleType: 'individual',
+			roomPrefix: 'call-',
+			ruleOptions: { name: 'race', trunkIds: 'ST_1', agentName: 'booking', agentMetadata: '{"m":1}' },
+		}),
+	);
+	assert.equal(individual.method, 'CreateSIPDispatchRule');
+	assert.deepEqual(individual.sip, { admin: true });
+	assert.deepEqual(individual.body, {
+		dispatch_rule: {
+			rule: { dispatch_rule_individual: { room_prefix: 'call-' } },
+			name: 'race',
+			trunk_ids: ['ST_1'],
+			room_config: { agents: [{ agent_name: 'booking', metadata: '{"m":1}' }] },
+		},
+	});
+	const direct = buildRequest(
+		'sipDispatchRule',
+		'create',
+		getter({ ruleType: 'direct', ruleRoomName: 'lobby' }),
+	);
+	assert.deepEqual(direct.body, {
+		dispatch_rule: { rule: { dispatch_rule_direct: { room_name: 'lobby' } } },
+	});
+	const callee = buildRequest(
+		'sipDispatchRule',
+		'create',
+		getter({ ruleType: 'callee', roomPrefix: 'num-' }),
+	);
+	assert.deepEqual(callee.body, {
+		dispatch_rule: { rule: { dispatch_rule_callee: { room_prefix: 'num-' } } },
+	});
+});
+
+test('dispatch rule list and delete', () => {
+	const many = buildRequest('sipDispatchRule', 'getMany', getter({ ruleIds: 'SDR_1' }));
+	assert.equal(many.method, 'ListSIPDispatchRule');
+	assert.deepEqual(many.body, { dispatch_rule_ids: ['SDR_1'] });
+	assert.deepEqual(many.listKeys, ['items']);
+	const del = buildRequest('sipDispatchRule', 'delete', getter({ sipDispatchRuleId: 'SDR_1' }));
+	assert.deepEqual(del.body, { sip_dispatch_rule_id: 'SDR_1' });
+});

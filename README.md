@@ -19,6 +19,8 @@ Status: 0.1.0, unit-tested, not yet run against a LiveKit server.
 | Resource | Operations |
 |---|---|
 | SIP | Transfer Participant (REFER), Create Participant (outbound call) |
+| SIP Trunk | Create (inbound or outbound), Get Many, Delete |
+| SIP Dispatch Rule | Create (direct, individual, callee; optional agent dispatch), Get Many, Delete |
 | Room | Create, Get Many, Delete, Update Metadata |
 | Participant | Get, Get Many, Remove, Update, Send Data |
 | Agent Dispatch | Create, Get Many, Delete |
@@ -26,6 +28,10 @@ Status: 0.1.0, unit-tested, not yet run against a LiveKit server.
 
 Every API request carries a token signed for that request: 60 s lifetime, only
 the grants the operation needs.
+
+Not covered: trunk digest authentication (username and password) and dispatch
+rule PINs. Both are secrets and would need a credential type, not a node field.
+Restrict inbound trunks by allowed addresses or numbers instead.
 
 ## Trigger setup
 
