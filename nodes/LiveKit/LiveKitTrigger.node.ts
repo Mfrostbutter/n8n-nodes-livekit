@@ -28,6 +28,7 @@ export class LiveKitTrigger implements INodeType {
 				name: 'default',
 				httpMethod: 'POST',
 				responseMode: 'onReceived',
+				responseData: 'noData',
 				path: 'webhook',
 			},
 		],

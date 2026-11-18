@@ -308,9 +308,11 @@ test('redact strips trunk passwords at any depth and keeps the rest', () => {
 	const out = redact({
 		items: [{ sip_trunk_id: 'ST_1', auth_username: 'u', auth_password: 'p' }],
 		trunk: { authPassword: 'p', name: 'n' },
+		rooms: [{ name: 'r', turn_password: 't' }],
 	});
 	assert.deepEqual(out, {
 		items: [{ sip_trunk_id: 'ST_1', auth_username: 'u' }],
 		trunk: { name: 'n' },
+		rooms: [{ name: 'r' }],
 	});
 });

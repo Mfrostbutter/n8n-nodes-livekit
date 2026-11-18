@@ -67,7 +67,8 @@ export class LiveKitApi implements ICredentialType {
 			url: '/twirp/livekit.RoomService/ListRooms',
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: {},
+			// Non-empty on purpose: n8n drops an empty body and Twirp rejects a missing one.
+			body: { names: [] },
 			json: true,
 		},
 	};

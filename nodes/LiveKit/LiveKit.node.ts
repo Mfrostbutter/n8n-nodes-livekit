@@ -91,17 +91,18 @@ export class LiveKit implements INodeType {
 
 				let response: IDataObject;
 				try {
-					response = redact(await this.helpers.httpRequest({
+					// Body goes as a string: n8n drops an empty object body and Twirp rejects a missing one.
+					const raw = await this.helpers.httpRequest({
 						method: 'POST',
 						url: twirpUrl(serverUrl, request.service, request.method),
 						headers: {
 							Authorization: `Bearer ${token}`,
 							'Content-Type': 'application/json',
 						},
-						body: request.body,
-						json: true,
+						body: JSON.stringify(request.body ?? {}),
 						timeout: (Number(get('requestTimeout', 30)) || 30) * 1000,
-					})) as IDataObject;
+					});
+					response = redact(typeof raw === 'string' ? JSON.parse(raw || '{}') : raw) as IDataObject;
 				} catch (error) {
 					throw new NodeApiError(this.getNode(), error as JsonObject, { itemIndex: i });
 				}

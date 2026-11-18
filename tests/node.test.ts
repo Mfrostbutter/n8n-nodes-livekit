@@ -79,7 +79,7 @@ function executeContext(items: Record<string, unknown>[], continueOnFail = false
 				const res = await fetch(o.url, {
 					method: o.method,
 					headers: o.headers,
-					body: JSON.stringify(o.body),
+					body: typeof o.body === 'string' ? o.body : JSON.stringify(o.body),
 				});
 				const json = await res.json();
 				if (!res.ok) {

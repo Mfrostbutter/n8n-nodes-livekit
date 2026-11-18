@@ -368,9 +368,9 @@ export function withTrunkAuth(request: ApiRequest, auth: TrunkAuth): ApiRequest 
 	};
 }
 
-const SECRET_KEYS = new Set(['auth_password', 'authPassword']);
+const SECRET_KEYS = new Set(['auth_password', 'authPassword', 'turn_password', 'turnPassword']);
 
-// Removes trunk passwords from an API response, at any depth.
+// Removes trunk and TURN passwords from an API response, at any depth.
 export function redact<T>(value: T): T {
 	if (Array.isArray(value)) return value.map(redact) as T;
 	if (value && typeof value === 'object') {
