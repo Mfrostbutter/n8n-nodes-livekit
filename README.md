@@ -4,7 +4,9 @@ LiveKit control-plane nodes for n8n. No audio: the nodes call LiveKit's server
 API and receive its webhook events. The agent worker that carries the call
 stays outside n8n.
 
-Status: 0.1.0, unit-tested, not yet run against a LiveKit server.
+Status: 0.1.0. A community node package, built as-is for evaluation. It is not
+an official n8n node, does not ship with n8n and carries no support commitment.
+It is not affiliated with LiveKit.
 
 ## Contents
 
@@ -43,6 +45,33 @@ LiveKit has no API to register a webhook URL. Copy the trigger's URL into
 settings. The trigger rejects any request whose token signature, issuer,
 expiry or body hash does not check out (401, no execution).
 
+## What has been tested
+
+| Test | Result |
+|---|---|
+| Unit tests (token claims per operation, webhook signature accept and reject, request shapes) | 37 pass |
+| `scripts/smoke.js` against LiveKit server 1.13.11 (self-hosted) and LiveKit Cloud | 27 of 27 checks |
+| Loaded into n8n 2.35.5 (self-hosted, regular mode) through `N8N_CUSTOM_EXTENSIONS` | credential test, action node and trigger work |
+| Trigger with real LiveKit events (`application/webhook+json`) | signed events start executions, unsigned requests get 401 |
+| Browser participant joined with a token from the Access Token operation | update, room metadata, send data and remove work on it |
+| SIP dispatch: inbound trunk and dispatch rule created with the node, real inbound call routed | works |
+| SIP transfer (REFER) on a live call over a Twilio Elastic SIP trunk with call transfer enabled | `STS_TRANSFER_SUCCESSFUL`, transferred call answered |
+
+Not tested: queue mode, use as an AI Agent tool, the outbound call operation
+against a real carrier, any carrier other than Twilio.
+
+## Known limits
+
+- No operation for LiveKit's phone-number API. A number rented from LiveKit is
+  bound to a dispatch rule in the LiveKit console.
+- No update operation for trunks and dispatch rules; delete and create.
+- LiveKit refuses a transfer on a number rented from LiveKit (403, "transfers
+  are not supported for this phone number type"). Transfers need a SIP trunk
+  whose provider accepts SIP REFER.
+- Dispatch rule create sends the `dispatch_rule` message, not the older flat
+  fields. An older LiveKit server may not accept it.
+- n8n Cloud does not accept private custom nodes.
+
 ## Build and test
 
 ```
@@ -55,9 +84,19 @@ Zero runtime dependencies. Signing uses Node `crypto`.
 
 ## Install
 
-Self-hosted n8n only. Mount `dist/` and `package.json` under the directory in
-`N8N_CUSTOM_EXTENSIONS`. In queue mode the package must be on main, every
-worker and every webhook process, same version.
+Self-hosted n8n only. Build, then put `package.json` and `dist/` in a folder
+named `n8n-nodes-livekit` under the directory that `N8N_CUSTOM_EXTENSIONS`
+points to, and restart n8n (`scripts/stage-lab.sh` builds and stages exactly
+those files). The nodes then appear as LiveKit and LiveKit Trigger; in workflow
+JSON their types are `CUSTOM.liveKit` and `CUSTOM.liveKitTrigger`. In queue
+mode the package must be on main, every worker and every webhook process, same
+version.
+
+The server URL in the credential may be `https://` or `wss://`.
+
+## Licence
+
+MIT, see `LICENSE`.
 
 ## Source of the API facts
 
