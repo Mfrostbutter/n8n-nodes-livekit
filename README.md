@@ -72,6 +72,25 @@ against a real carrier, any carrier other than Twilio.
   fields. An older LiveKit server may not accept it.
 - n8n Cloud does not accept private custom nodes.
 
+## Example: call handover
+
+`examples/voice-booking-handoff.json` is a workflow that transfers a live
+caller to a person. A voice worker posts `sessionId`, `room`, `identity` and
+`summary` to its webhook (`ar/lk/v1/handoff`) after the handover line has
+played. The workflow loads the session, builds the return context as a hex
+UUI through a sub-workflow, and sends the SIP transfer with the LiveKit node
+(SIP, Transfer Participant) with the UUI as a `User-to-User` header. It
+answers `{ok: true, transferMs}` or `{ok: false, error}`.
+
+It was written for the voice booking workflow set
+(https://github.com/Mfrostbutter/n8n-voice-booking-agent) and the reference
+worker (https://github.com/Mfrostbutter/n8n-livekit-worker, set
+`N8N_PATH_HANDOFF=/ar/lk/v1/handoff`). Before import, replace the four
+placeholders: the two credential ids, the `ar_sessions` Data Table id in
+LoadSession, and the AR-14 workflow id in BuildHandoff. Set the transfer
+target in TransferRequest to your agent queue number. Proven on 2026-11-19 on
+a Twilio SIP trunk: transfer done in 3.9 s. Not tested on any other carrier.
+
 ## Build and test
 
 ```

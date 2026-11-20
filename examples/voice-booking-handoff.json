@@ -1,0 +1,342 @@
+{
+  "name": "AR-LK-01 LiveKit handoff",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## AR-LK-01 LiveKit handoff\nThe voice worker posts here after the handover line has played. n8n loads the session, builds the return UUI (AR-14) and sends the SIP transfer through the LiveKit node with the UUI as a User-to-User header. Answers {ok}. Set the transfer target in TransferRequest to the agent queue number.",
+        "width": 760,
+        "height": 150
+      },
+      "id": "8fe277e4-3943-593d-97ee-595135a83f14",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ar/lk/v1/handoff",
+        "responseMode": "responseNode",
+        "options": {},
+        "authentication": "headerAuth"
+      },
+      "id": "6a94115e-8dd7-52bc-9c25-30e06f060e63",
+      "name": "ReceiveHandoff",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "fed1a6ce-e983-50cb-95a3-7359c3adc1e1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "AR gateway bearer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_WITH_AR_SESSIONS_TABLE_ID"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "sessionId",
+              "condition": "eq",
+              "keyValue": "={{ $json.body.sessionId }}"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "id": "1833d1c4-ffea-5384-89be-dbc7e96c1fdf",
+      "name": "LoadSession",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_AR_14_WORKFLOW_ID",
+          "mode": "list",
+          "cachedResultName": "AR-14 Build handoff context"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "sessionId": "={{ $('ReceiveHandoff').first().json.body.sessionId }}",
+            "intent": "={{ $('LoadSession').first().json.intent || 'UNKNOWN' }}",
+            "handoffReason": "CALLER_REQUEST",
+            "summary": "={{ $('ReceiveHandoff').first().json.body.summary || '' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "sessionId",
+              "displayName": "sessionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "intent",
+              "displayName": "intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "handoffReason",
+              "displayName": "handoffReason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "0f7609bf-9a2b-5a6a-b51e-d31f66a5a669",
+      "name": "BuildHandoff",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        416,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "385f97fb-6529-58d7-bf86-93d31bb2a351",
+              "name": "room",
+              "value": "={{ $('ReceiveHandoff').first().json.body.room }}",
+              "type": "string"
+            },
+            {
+              "id": "13fa81ae-ed50-59d8-a828-7d14e41b1e87",
+              "name": "identity",
+              "value": "={{ $('ReceiveHandoff').first().json.body.identity }}",
+              "type": "string"
+            },
+            {
+              "id": "e3420235-88f3-5eb3-afa0-2da22ef61555",
+              "name": "transferTo",
+              "value": "tel:+10000000000",
+              "type": "string"
+            },
+            {
+              "id": "dd3f90d9-f138-5cb8-a201-26f47cbc1a14",
+              "name": "uui",
+              "value": "={{ ($json.uuiHex || '') + ';encoding=hex' }}",
+              "type": "string"
+            },
+            {
+              "id": "dbe822a6-d5a8-5684-be4a-ea5fe7fdb7e4",
+              "name": "startedAt",
+              "value": "={{ Date.now() }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7745b80b-9def-54bc-97e3-9f928bf25ca7",
+      "name": "TransferRequest",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        624,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sip",
+        "operation": "transfer",
+        "roomName": "={{ $json.room }}",
+        "identity": "={{ $json.identity }}",
+        "transferTo": "={{ $json.transferTo }}",
+        "transferOptions": {
+          "headers": "={{ JSON.stringify({ 'User-to-User': $json.uui }) }}",
+          "playDialtone": true
+        }
+      },
+      "id": "af0eb8db-b45f-5e2e-9c9b-78b2a0c21e1a",
+      "name": "TransferCaller",
+      "type": "CUSTOM.liveKit",
+      "typeVersion": 1,
+      "position": [
+        832,
+        0
+      ],
+      "credentials": {
+        "liveKitApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "LiveKit account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, status: $json.status || '', transferMs: Date.now() - $('TransferRequest').first().json.startedAt }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "1b01e71f-3657-5467-9577-1d02b3b967c1",
+      "name": "RespondDone",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1040,
+        -104
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, error: 'transfer_failed', detail: String(($json.error || {}).message || $json.message || '').slice(0, 200) }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "84530d55-f74e-543f-9c71-6324bccc8425",
+      "name": "RespondFailed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1040,
+        104
+      ]
+    }
+  ],
+  "connections": {
+    "ReceiveHandoff": {
+      "main": [
+        [
+          {
+            "node": "LoadSession",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LoadSession": {
+      "main": [
+        [
+          {
+            "node": "BuildHandoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BuildHandoff": {
+      "main": [
+        [
+          {
+            "node": "TransferRequest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TransferRequest": {
+      "main": [
+        [
+          {
+            "node": "TransferCaller",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TransferCaller": {
+      "main": [
+        [
+          {
+            "node": "RespondDone",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RespondFailed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    "voice-booking",
+    "livekit"
+  ],
+  "project": "Voice Booking",
+  "folder": "Voice Booking Agent",
+  "nodePolicy": {
+    "exceptions": [
+      {
+        "node": "CUSTOM.liveKit",
+        "reason": "No native LiveKit node exists; n8n-nodes-livekit sends the SIP transfer.",
+        "approver": "REPLACE_WITH_YOUR_APPROVER"
+      }
+    ]
+  }
+}
